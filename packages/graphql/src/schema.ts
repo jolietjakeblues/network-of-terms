@@ -29,12 +29,15 @@ export const schema = (languages: string[]) => `
   """
   type Feature {
     type: FeatureType!
-    url: ID!
+    url: ID
   }
-  
+
   enum FeatureType {
-    "Reconciliation Service API"
+    "Reconciliation Service API."
     RECONCILIATION
+
+    "Genre-based filtering of search results."
+    GENRE_FILTER
   }
   
   """
@@ -85,7 +88,10 @@ export const schema = (languages: string[]) => `
     terms(
       "List of URIs of sources to query."
       sources: [ID]!,
-      
+
+      "Optional list of genres to filter results within sources that support genre-based filtering."
+      genres: [ID],
+
       "A literal search query, for example \`Rembrandt\`."
       query: String!,
 
@@ -103,7 +109,10 @@ export const schema = (languages: string[]) => `
     ): [TermsQueryResult]
     
     "List all sources that can be queried for terms."
-    sources: [Source]
+    sources(
+      "List of genre URIs to filter sources by."
+      genres: [ID]
+    ): [Source]
     
     "Look up terms by their URI."
     lookup(

@@ -20,6 +20,7 @@ export interface QueryOptions extends BaseQueryOptions {
 
 export interface QueryAllOptions extends BaseQueryOptions {
   sources: IRI[];
+  genres?: IRI[];
 }
 
 const schemaBase = Joi.object({
@@ -35,6 +36,7 @@ const schemaQuery = schemaBase.append({
 
 const schemaQueryAll = schemaBase.append({
   sources: Joi.array().items(Joi.string().required()).min(1).required(),
+  genres: Joi.array().items(Joi.string().required()).min(1),
 });
 
 export class DistributionsService {
@@ -52,7 +54,7 @@ export class DistributionsService {
     this.comunica = options.comunica || comunica();
   }
 
-  async query(options: QueryOptions): Promise<TermsResponse> {
+  async query(options: QueryOptions, genres?: IRI[]): Promise<TermsResponse> {
     const args = Joi.attempt(options, schemaQuery);
     this.logger.info(`Preparing to query source "${args.source}"...`);
     const dataset = this.catalog.getDatasetByIri(args.source);
@@ -71,6 +73,7 @@ export class DistributionsService {
       distribution,
       args.limit,
       args.timeoutMs,
+      genres,
     );
   }
 
@@ -81,13 +84,16 @@ export class DistributionsService {
       type: 'search',
     });
     const requests = args.sources.map((source: IRI) =>
-      this.query({
-        source,
-        query: args.query,
-        queryMode: args.queryMode,
-        limit: args.limit,
-        timeoutMs: args.timeoutMs,
-      }),
+      this.query(
+        {
+          source,
+          query: args.query,
+          queryMode: args.queryMode,
+          limit: args.limit,
+          timeoutMs: args.timeoutMs,
+        },
+        args.genres,
+      ),
     );
     return Promise.all(requests);
   }

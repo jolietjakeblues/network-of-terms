@@ -24,8 +24,13 @@ export class QuerySourcesCommand extends Command {
   static flags = {
     uris: Flags.string({
       description:
-        'URIs of sources to query, comma-separated, e.g. "https://www.wikidata.org/sparql,https://data.netwerkdigitaalerfgoed.nl/rkd/rkdartists/sparql"',
+        'URIs of sources to query, comma-separated, e.g. "https://www.wikidata.org/sparql,https://data.netwerkdigitaalerfgoed.nl/rkd/rkdartists/sparql".',
       required: true,
+    }),
+    genres: Flags.string({
+      description:
+        'Genre URIs to filter results within sources, comma-separated, e.g. "https://data.cultureelerfgoed.nl/termennetwerk/onderwerpen/Personen"',
+      required: false,
     }),
     query: Flags.string({
       description: 'Query, e.g. "Gogh" or "fiets"',
@@ -98,6 +103,9 @@ export class QuerySourcesCommand extends Command {
     const sources = flags.uris
       .split(',')
       .map((distributionId: string) => distributionId.trim());
+    const genres = flags.genres
+      ?.split(',')
+      .map((genre: string) => genre.trim());
 
     const logger = getCliLogger({
       name: 'cli',
@@ -107,6 +115,7 @@ export class QuerySourcesCommand extends Command {
     const service = new DistributionsService({ logger, catalog });
     const results = await service.queryAll({
       sources,
+      genres,
       query: flags.query,
       queryMode: QueryMode[flags.queryMode as keyof typeof QueryMode],
       limit: 100,

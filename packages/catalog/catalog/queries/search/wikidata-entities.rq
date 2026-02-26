@@ -1,0 +1,99 @@
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX mwapi: <https://www.mediawiki.org/ontology#API/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX schema: <http://schema.org/>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX vrank: <http://purl.org/voc/vrank#>
+PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX wikibase: <http://wikiba.se/ontology#>
+
+CONSTRUCT {
+    ?item a skos:Concept ;
+        skos:prefLabel ?prefLabel ;
+        skos:altLabel ?altLabel ;
+        skos:scopeNote ?description ;
+        vrank:simpleRank ?score .
+}
+WHERE {
+    {
+        SELECT DISTINCT ?item ?score WHERE {
+            SERVICE wikibase:mwapi {
+                bd:serviceParam wikibase:endpoint "www.wikidata.org" ;
+                    wikibase:api "Search" ;
+                    wikibase:limit "once" ;
+                    mwapi:language "nl" ;
+                    mwapi:srsearch ?query .
+                ?item wikibase:apiOutputItem mwapi:title .
+                ?ordinal wikibase:apiOrdinal true.
+            }
+
+            BIND(-?ordinal AS ?score)
+
+            VALUES ?genreUri { ?genres }
+
+            {
+                # Personen: instance of human (Q5)
+                VALUES (?genreUri ?genreType) {
+                    (<https://data.cultureelerfgoed.nl/termennetwerk/onderwerpen/Personen> wd:Q5)
+                }
+                ?item wdt:P31 ?genreType .
+            }
+            UNION
+            {
+                # Locaties: instances or subclasses of human settlement (Q486972)
+                # in the Netherlands (Q55) or Belgium (Q31)
+                VALUES (?genreUri ?genreType) {
+                    (<https://data.cultureelerfgoed.nl/termennetwerk/onderwerpen/Locaties> wd:Q486972)
+                }
+                FILTER(?datasetUri = <https://www.wikidata.org#entities-places>)
+                ?item wdt:P31/wdt:P279* ?genreType .
+                {
+                    { ?item wdt:P17 wd:Q55 . }
+                    UNION
+                    { ?item wdt:P17 wd:Q31 . }
+                }
+                FILTER NOT EXISTS { ?item wdt:P31 wd:Q159313 }
+                FILTER NOT EXISTS { ?item wdt:P31 wd:Q123705 }
+            }
+            UNION
+            {
+                # Straten: streets, squares, main squares in the Netherlands (Q55)
+                VALUES ?genreUri {
+                    <https://data.cultureelerfgoed.nl/termennetwerk/onderwerpen/Locaties>
+                }
+                FILTER(?datasetUri = <https://www.wikidata.org#entities-streets>)
+                {
+                    { ?item wdt:P31 wd:Q79007 . }
+                    UNION
+                    { ?item wdt:P31 wd:Q174782 . }
+                    UNION
+                    { ?item wdt:P31 wd:Q26987258 . }
+                }
+                ?item wdt:P17 wd:Q55 .
+            }
+            UNION
+            {
+                # Objecten: all other entities (no type restriction)
+                VALUES ?genreUri {
+                    <https://data.cultureelerfgoed.nl/termennetwerk/onderwerpen/Objecten>
+                }
+            }
+        }
+        ORDER BY ASC(?ordinal)
+        #LIMIT#
+    }
+
+    OPTIONAL {
+        ?item rdfs:label ?prefLabel .
+        FILTER(LANG(?prefLabel) = "nl" || LANG(?prefLabel) = "en")
+    }
+    OPTIONAL {
+        ?item skos:altLabel ?altLabel .
+        FILTER(LANG(?altLabel) = "nl" || LANG(?altLabel) = "en")
+    }
+    OPTIONAL {
+        ?item schema:description ?description .
+        FILTER(LANG(?description) = "nl" || LANG(?description) = "en")
+    }
+}

@@ -95,6 +95,27 @@ export function buildSearchQuery(
   return { query, bindings };
 }
 
+export function parameterizeGenres(
+  query: string,
+  requestedGenres: IRI[] | undefined,
+  datasetGenres: IRI[],
+): string {
+  if (!query.includes('?genres')) {
+    return query;
+  }
+
+  const datasetGenreSet = new Set(datasetGenres);
+  const validGenres =
+    requestedGenres?.filter((genre) => datasetGenreSet.has(genre)) ?? [];
+  const effectiveGenres =
+    validGenres.length > 0 ? validGenres : datasetGenres;
+
+  return query.replaceAll(
+    '?genres',
+    effectiveGenres.map((iri) => `<${iri}>`).join(' '),
+  );
+}
+
 export class QueryTermsService {
   private readonly logger: Pino.Logger;
   private readonly engine: QueryEngine;
@@ -135,6 +156,7 @@ export class QueryTermsService {
     distribution: Distribution,
     limit: number,
     timeoutMs: number,
+    genres?: IRI[],
   ): Promise<TermsResponse> {
     const bindings = [...queryVariants(searchQuery, queryMode)].reduce(
       (record: Record<string, RDF.Term>, [k, v]) => {
@@ -145,8 +167,14 @@ export class QueryTermsService {
     );
     bindings['datasetUri'] = dataFactory.namedNode(dataset.iri.toString());
 
+    const queryWithGenres = parameterizeGenres(
+      distribution.searchQuery,
+      genres,
+      dataset.genres,
+    );
+
     const { queryWithLimit, bindingsWithLimit } = this.parameterizeLimit({
-      query: distribution.searchQuery,
+      query: queryWithGenres,
       bindings,
       limit,
     });
