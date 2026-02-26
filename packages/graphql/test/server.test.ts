@@ -7,18 +7,18 @@ import {
   testCatalog,
 } from '@netwerk-digitaal-erfgoed/network-of-terms-query/test-utils';
 import { IRI } from '@netwerk-digitaal-erfgoed/network-of-terms-query';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 let httpServer: FastifyInstance;
 const catalog = testCatalog(3000);
 describe('Server', () => {
   afterAll(async () => {
     await teardown();
-  });
+  }, 20_000);
   beforeAll(async () => {
     await startDistributionSparqlEndpoint(3000);
     httpServer = await server(catalog, config);
-  });
+  }, 20_000);
 
   it('responds to GraphQL sources query', async () => {
     const body = await query(
@@ -59,6 +59,21 @@ describe('Server', () => {
       uri: 'https://data.cultureelerfgoed.nl/termennetwerk/onderwerpen/Personen',
       name: 'Personen',
     });
+  });
+
+  it('filters sources by genre', async () => {
+    const body = await query(
+      `
+        query {
+          sources(genres: ["https://data.cultureelerfgoed.nl/termennetwerk/onderwerpen/Personen"]) {
+            uri
+            name
+          }
+        }
+      `,
+    );
+    expect(body.data.sources).toHaveLength(1);
+    expect(body.data.sources[0].uri).toEqual('https://data.rkd.nl/rkdartists');
   });
 
   it('responds to GraphQL terms query when source does not exist', async () => {
@@ -139,6 +154,23 @@ describe('Server', () => {
       ({ prefLabel }: { prefLabel: string[] }) => prefLabel[0] ?? '',
     );
     expect(relatedPrefLabels).toEqual(['', 'Kunstige dingen', 'Rembrandt']); // Sorted alphabetically.
+  });
+
+  it('queries terms with genre filter', async () => {
+    const body = await query(
+      termsQuery({
+        sources: ['https://data.rkd.nl/rkdartists'],
+        genres: [
+          'https://data.cultureelerfgoed.nl/termennetwerk/onderwerpen/Personen',
+        ],
+        query: '.*',
+      }),
+    );
+    expect(body.data.terms).toHaveLength(1);
+    expect(body.data.terms[0].source.uri).toEqual(
+      'https://data.rkd.nl/rkdartists',
+    );
+    expect(body.data.terms[0].result.__typename).toEqual('Terms');
   });
 
   it('responds to successful multilingual GraphQL terms query', async () => {
@@ -293,11 +325,13 @@ async function query(query: string): Promise<any> {
 
 function termsQuery({
   sources,
+  genres,
   query = 'nachtwacht',
   limit = 100,
   languages,
 }: {
   sources: IRI[];
+  genres?: IRI[];
   query?: string;
   limit?: number;
   languages?: string[];
@@ -306,6 +340,7 @@ function termsQuery({
     query {
       terms(
         sources: [${sources.map((source) => `"${source}"`).join(',')}],
+        ${genres !== undefined ? `genres: [${genres.map((genre) => `"${genre}"`).join(',')}]` : ''}
         query: "${query}"
         limit: ${limit}
         timeoutMs: 1000

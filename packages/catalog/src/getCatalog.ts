@@ -144,16 +144,11 @@ export async function fromStore(store: RDF.Store): Promise<Catalog> {
             ),
           ],
           [
-            new SparqlDistribution(
-              dataset.distribution!.$id,
-              dataset.distribution!.contentUrl,
-              dataset.distribution!.potentialAction.filter((action) =>
-                action.types.includes(schema.SearchAction),
-              )[0].query!,
-              dataset.distribution!.potentialAction.filter((action) =>
-                action.types.includes(schema.FindAction),
-              )[0].query!,
-              dataset
+            (() => {
+              const searchQuery = dataset.distribution!.potentialAction.filter(
+                (action) => action.types.includes(schema.SearchAction),
+              )[0].query!;
+              const features: Feature[] = dataset
                 .distribution!.potentialAction.filter(
                   (action) =>
                     action.target?.actionApplication.$id ===
@@ -170,8 +165,20 @@ export async function fromStore(store: RDF.Store): Promise<Catalog> {
                         ),
                       ),
                     ),
-                ),
-            ),
+                );
+              if (searchQuery.includes('?genres')) {
+                features.push(new Feature(FeatureType.GENRE_FILTER));
+              }
+              return new SparqlDistribution(
+                dataset.distribution!.$id,
+                dataset.distribution!.contentUrl,
+                searchQuery,
+                dataset.distribution!.potentialAction.filter((action) =>
+                  action.types.includes(schema.FindAction),
+                )[0].query!,
+                features,
+              );
+            })(),
           ],
           dataset.alternateName,
         ),
@@ -185,7 +192,7 @@ export async function fromStore(store: RDF.Store): Promise<Catalog> {
  */
 async function fromFiles(directory: string): Promise<RDF.Store> {
   // Read all files except those in the queries/ directory.
-  const files = await globby([directory, '!' + directory + '/queries']);
+  const files = await globby([directory + '/**', '!**/queries/**']);
   const store = RdfStore.createDefault();
   for (const file of files) {
     const stream = fromFile(file);

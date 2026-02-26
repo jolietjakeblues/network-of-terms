@@ -7,29 +7,45 @@ CONSTRUCT {
     ?uri a skos:Concept ;
         skos:prefLabel ?prefLabel_ext ;
         skos:altLabel ?altLabel ;
-        skos:scopeNote ?scopeNote_en ;
+        skos:scopeNote ?scopeNote_en , ?scopeNote_nl ;
         skos:broader ?broader ;
         vrank:simpleRank ?score .
     ?broader skos:prefLabel ?broader_prefLabel .
 }
 WHERE {
     {
-        SELECT ?uri (MAX(?sc) as ?score) WHERE {
-            (?uri ?sc) text:query (gn:name gn:alternateName ?query) .
+        SELECT ?uri ?featureClass ?countryCode (MAX(?sc)
+            + IF(CONTAINS(CONCAT(" ", LCASE(?query), " "), CONCAT(" ", LCASE(?countryCode), " ")), 2.0, 0)
+            + IF(?countryCode = "NL", 1.5, IF(?countryCode = "BE", 1.0, IF(?countryCode = "DE", 0.5, 0)))
+            AS ?score) WHERE {
+            # Boost name matches (^3) above alternateName matches, using Lucene query-time boosting
+            # (text:boost in the Fuseki config is silently ignored since Lucene 7.0).
+            BIND(CONCAT("name:(", ?query, ")^3 alternateName:(", ?query, ")") AS ?luceneQuery)
+            (?uri ?sc) text:query (?luceneQuery) .
             ?uri a gn:Feature ;
-                gn:featureClass ?featureClass .
+                gn:featureClass ?featureClass ;
+                gn:countryCode ?countryCode .
             # Limit results to places (P), localities (L), administrative levels (A) and water surfaces (H).
             VALUES ?featureClass { gn:P gn:L gn:A gn:H }
+            # Country filter from URI fragment (e.g. #NL-BE-DE), or allow all if no fragment
+            BIND(COALESCE(STRAFTER(STR(?datasetUri), "#"), "") AS ?countriesFragment)
+            FILTER(?countriesFragment = "" || CONTAINS(UCASE(?countriesFragment), ?countryCode))
         }
-        GROUP BY ?uri
+        GROUP BY ?uri ?featureClass ?countryCode
         ORDER BY DESC(?score)
         #LIMIT#
     }
 
-    ?uri gn:name ?prefLabel ;
-        gn:countryCode ?countryCode .
+    ?uri gn:name ?prefLabel .
 
     BIND(CONCAT(?prefLabel," (",UCASE(?countryCode),")") as ?prefLabel_ext)
+
+    VALUES (?featureClass ?scopeNote_en ?scopeNote_nl) {
+        (gn:A "Administrative boundary"@en "Bestuurlijke eenheid"@nl)
+        (gn:H "Hydrographic"@en "Water"@nl)
+        (gn:L "Area"@en "Gebied"@nl)
+        (gn:P "Populated place"@en "Plaats"@nl)
+    }
 
     OPTIONAL {
         ?uri gn:alternateName ?altLabel .
@@ -42,11 +58,5 @@ WHERE {
         VALUES ?parents { gn:parentADM1 gn:parentADM2 }
         # filter out the circular links in the converted data
         FILTER(?uri != ?broader)
-    }
-
-    OPTIONAL {
-        ?uri gn:featureCode/gn:name ?scopeNote .
-        # scopeNote is always in English.
-        BIND(STRLANG(?scopeNote, "en") as ?scopeNote_en)
     }
 }

@@ -12,6 +12,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # Skip bot-authored commits to prevent redundant workflow runs.
+    if: github.event.head_commit.author.name != 'github-actions[bot]'
     steps:
       - uses: actions/checkout@v6
         with:
@@ -29,6 +31,9 @@ jobs:
       - run: npm ci
 
       - uses: nrwl/nx-set-shas@v4
+        with:
+          main-branch-name: master
+          error-on-no-successful-workflow: true
 
       - name: Configure Git
         run: |
@@ -49,10 +54,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PAT }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
-          NX_VERBOSE_LOGGING: true
         id: docker
         run: |
-          npx nx release --dockerVersionScheme=production --yes
+          npx nx release --yes
           {
             echo 'images<<EOF'
             docker image ls ghcr.io/netwerk-digitaal-erfgoed/network-of-terms-* --format "{{.Repository}}:{{.Tag}}"

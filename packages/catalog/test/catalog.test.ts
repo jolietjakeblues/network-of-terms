@@ -1,3 +1,4 @@
+import { beforeAll, describe, expect, it } from 'vitest';
 import {
   Catalog,
   Dataset,
@@ -52,7 +53,7 @@ describe('Catalog', () => {
     expect(cht.distributions[0].features[0].type).toEqual(
       FeatureType.RECONCILIATION,
     );
-    expect(cht.distributions[0].features[0].url.toString()).toEqual(
+    expect(cht.distributions[0].features[0].url?.toString()).toEqual(
       `https://termennetwerk-api.netwerkdigitaalerfgoed.nl/reconcile/${cht.iri}`,
     );
   });

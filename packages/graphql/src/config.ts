@@ -16,6 +16,15 @@ const schema = {
         'catalog',
       ),
     },
+    STATUS_SERVICE_URL: {
+      type: 'string',
+      default: 'https://status.termennetwerk.netwerkdigitaalerfgoed.nl',
+      description: 'Base URL of the status service',
+    },
+    LOG_LEVEL: {
+      type: 'string',
+      default: 'info',
+    },
   },
 };
 

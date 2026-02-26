@@ -1,5 +1,6 @@
 import * as Hoek from '@hapi/hoek';
 import Joi from 'joi';
+import { createLoggingFetch } from './helpers/logging-fetch.js';
 import { LoggerPino } from './helpers/logger-pino.js';
 import Pino from 'pino';
 import PrettyMilliseconds from 'pretty-ms';
@@ -12,50 +13,6 @@ import { BindingsFactory } from '@comunica/utils-bindings-factory';
 import { DataFactory } from 'rdf-data-factory';
 import { sourceQueriesHistogram } from './instrumentation.js';
 import { config } from './config.js';
-
-/**
- * Check if a query requires string substitution instead of initialBindings.
- * Workaround for Comunica v5 traqula bug that crashes with:
- * - SERVICE clauses
- * - VALUES combination
- */
-function requiresStringSubstitution(query: string): boolean {
-  const hasService = /\bSERVICE\b/i.test(query);
-  const hasValues = /\bVALUES\b/i.test(query);
-  return hasService || hasValues;
-}
-
-/**
- * Substitute bindings directly into a SPARQL query string.
- * This is a workaround for Comunica v5's initialBindings bug with SERVICE clauses.
- */
-function substituteBindings(
-  query: string,
-  bindings: Record<string, RDF.Term>,
-): string {
-  let result = query;
-  for (const [name, term] of Object.entries(bindings)) {
-    const pattern = new RegExp(`\\?${name}\\b`, 'g');
-    if (term.termType === 'NamedNode') {
-      result = result.replace(pattern, `<${term.value}>`);
-    } else if (term.termType === 'Literal') {
-      const literal = term as RDF.Literal;
-      const datatype = literal.datatype?.value;
-      if (
-        datatype &&
-        datatype !== 'http://www.w3.org/2001/XMLSchema#string' &&
-        datatype !== 'http://www.w3.org/1999/02/22-rdf-syntax-ns#langString'
-      ) {
-        result = result.replace(pattern, `"${term.value}"^^<${datatype}>`);
-      } else if (literal.language) {
-        result = result.replace(pattern, `"${term.value}"@${literal.language}`);
-      } else {
-        result = result.replace(pattern, `"${term.value}"`);
-      }
-    }
-  }
-  return result;
-}
 
 export type TermsResult = Terms | TimeoutError | ServerError;
 
@@ -91,13 +48,83 @@ export class TimeoutError extends Error {
 
 export class ServerError extends Error {}
 
+export interface BuildSearchQueryOptions {
+  /** The SPARQL query template with placeholders. */
+  template: string;
+  /** The search term to bind. */
+  searchTerm: string;
+  /** Query mode for search term processing. */
+  queryMode: QueryMode;
+  /** Dataset IRI to bind to ?datasetUri. */
+  datasetIri: string;
+  /** Limit for results. */
+  limit: number;
+}
+
+export interface BuildSearchQueryResult {
+  /** The query with #LIMIT# replaced. */
+  query: string;
+  /** Bindings for SPARQL variables (?query, ?virtuosoQuery, ?datasetUri, ?limit). */
+  bindings: Record<string, RDF.Term>;
+}
+
+/**
+ * Build a SPARQL query and bindings from a template.
+ * Returns the query with #LIMIT# replaced and a set of bindings for variables.
+ * The bindings can be used with Comunica's initialBindings or serialized into the query.
+ */
+export function buildSearchQuery(
+  options: BuildSearchQueryOptions,
+): BuildSearchQueryResult {
+  const variants = queryVariants(options.searchTerm, options.queryMode);
+
+  // Replace #LIMIT# placeholder
+  const query = options.template.replace('#LIMIT#', `LIMIT ${options.limit}`);
+
+  // Build bindings record
+  const bindings: Record<string, RDF.Term> = {};
+  for (const [varName, value] of variants) {
+    bindings[varName] = dataFactory.literal(value);
+  }
+  bindings['datasetUri'] = dataFactory.namedNode(options.datasetIri);
+  bindings['limit'] = dataFactory.literal(
+    options.limit.toString(),
+    dataFactory.namedNode('http://www.w3.org/2001/XMLSchema#integer'),
+  );
+
+  return { query, bindings };
+}
+
+export function parameterizeGenres(
+  query: string,
+  requestedGenres: IRI[] | undefined,
+  datasetGenres: IRI[],
+): string {
+  if (!query.includes('?genres')) {
+    return query;
+  }
+
+  const datasetGenreSet = new Set(datasetGenres);
+  const validGenres =
+    requestedGenres?.filter((genre) => datasetGenreSet.has(genre)) ?? [];
+  const effectiveGenres =
+    validGenres.length > 0 ? validGenres : datasetGenres;
+
+  return query.replaceAll(
+    '?genres',
+    effectiveGenres.map((iri) => `<${iri}>`).join(' '),
+  );
+}
+
 export class QueryTermsService {
   private readonly logger: Pino.Logger;
   private readonly engine: QueryEngine;
+  private readonly fetch: typeof fetch;
 
   constructor(options: { comunica?: QueryEngine; logger?: Pino.Logger } = {}) {
     this.engine = options.comunica || new QueryEngine();
     this.logger = options.logger || Pino.pino();
+    this.fetch = createLoggingFetch(this.logger);
   }
 
   /**
@@ -129,6 +156,7 @@ export class QueryTermsService {
     distribution: Distribution,
     limit: number,
     timeoutMs: number,
+    genres?: IRI[],
   ): Promise<TermsResponse> {
     const bindings = [...queryVariants(searchQuery, queryMode)].reduce(
       (record: Record<string, RDF.Term>, [k, v]) => {
@@ -139,8 +167,14 @@ export class QueryTermsService {
     );
     bindings['datasetUri'] = dataFactory.namedNode(dataset.iri.toString());
 
+    const queryWithGenres = parameterizeGenres(
+      distribution.searchQuery,
+      genres,
+      dataset.genres,
+    );
+
     const { queryWithLimit, bindingsWithLimit } = this.parameterizeLimit({
-      query: distribution.searchQuery,
+      query: queryWithGenres,
       bindings,
       limit,
     });
@@ -184,19 +218,10 @@ export class QueryTermsService {
     const logger = new LoggerPino({ logger: this.logger });
     // Extract HTTP credentials if the distribution URL contains any.
     const url = new URL(distribution.endpoint.toString());
-
-    // Workaround for https://github.com/comunica/comunica/issues/1655, so use
-    // string substitution instead of initialBindings for:
-    // - SERVICE clauses crash with initialBindings
-    // - VALUES crashes in some combinations
-    const useStringSubstitution = requiresStringSubstitution(query);
-    const finalQuery = useStringSubstitution
-      ? substituteBindings(query, bindings)
-      : query;
-
-    this.logger.info(`Querying "${url}" with "${finalQuery}"...`);
-    const quadStream = await this.engine.queryQuads(finalQuery, {
+    this.logger.info(`Querying "${url}" with "${query}"...`);
+    const quadStream = await this.engine.queryQuads(query, {
       log: logger,
+      fetch: this.fetch,
       httpAuth:
         url.username === '' ? undefined : url.username + ':' + url.password,
       httpTimeout: timeoutMs,
@@ -207,10 +232,7 @@ export class QueryTermsService {
           value: url.origin + url.pathname,
         },
       ],
-      // Only pass initialBindings when NOT using string substitution
-      ...(useStringSubstitution
-        ? {}
-        : { initialBindings: bindingsFactory.fromRecord(bindings) }),
+      initialBindings: bindingsFactory.fromRecord(bindings),
     });
 
     return new Promise((resolve) => {

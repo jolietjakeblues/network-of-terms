@@ -13,6 +13,7 @@
   "plugins": [
     {
       "plugin": "@nx/vite/plugin",
+      "exclude": ["vitest.config.ts"],
       "options": {
         "buildTargetName": "build",
         "testTargetName": "test",
@@ -54,32 +55,48 @@
     }
   ],
   "release": {
-    "projects": [
-      "network-of-terms-catalog",
-      "network-of-terms-query",
-      "network-of-terms-graphql",
-      "network-of-terms-reconciliation"
-    ],
     "projectsRelationship": "independent",
-    "releaseTag": {
-      "preferDockerVersion": false
-    },
-    "docker": {
-      "registryUrl": "ghcr.io/netwerk-digitaal-erfgoed",
-      "versionSchemes": {
-        "production": "{versionActionsVersion}"
-      }
-    },
     "version": {
       "preVersionCommand": "npx nx run-many -t build",
-      "conventionalCommits": true,
       "fallbackCurrentVersionResolver": "disk"
     },
     "changelog": {
       "projectChangelogs": {
-        "createRelease": "github"
+        "file": false,
+        "createRelease": "github",
+        "renderOptions": {
+          "includeCommitBody": true
+        }
+      }
+    },
+    "groups": {
+      "packages": {
+        "projectsRelationship": "independent",
+        "projects": ["network-of-terms-catalog", "network-of-terms-query"],
+        "releaseTag": {
+          "pattern": "{projectName}@{version}"
+        },
+        "version": {
+          "conventionalCommits": true
+        }
       },
-      "automaticFromRef": true
+      "apps": {
+        "projects": [
+          "network-of-terms-graphql",
+          "network-of-terms-reconciliation",
+          "network-of-terms-status"
+        ],
+        "releaseTag": {
+          "pattern": "{projectName}@{version}"
+        },
+        "docker": {
+          "skipVersionActions": true,
+          "registryUrl": "ghcr.io/netwerk-digitaal-erfgoed",
+          "versionSchemes": {
+            "production": "{currentDate|YYYYMMDDHHmmss}-{shortCommitSha}"
+          }
+        }
+      }
     }
   },
   "targetDefaults": {

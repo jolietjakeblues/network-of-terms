@@ -6,10 +6,8 @@ export default defineConfig(() => ({
   plugins: [],
   test: {
     watch: false,
-    globals: true,
     environment: 'node',
     include: ['test/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-    reporters: ['default'],
     testTimeout: 10_000,
     coverage: {
       enabled: true,
@@ -17,10 +15,10 @@ export default defineConfig(() => ({
       provider: 'v8' as const,
       thresholds: {
         autoUpdate: true,
-        lines: 95.47,
-        functions: 92.85,
-        branches: 96.42,
-        statements: 95.47,
+        lines: 100,
+        functions: 100,
+        branches: 95.83,
+        statements: 100,
       },
     },
   },
