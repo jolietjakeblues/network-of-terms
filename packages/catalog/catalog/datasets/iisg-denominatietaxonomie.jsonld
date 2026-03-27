@@ -1,0 +1,71 @@
+{
+  "@context": "https://schema.org",
+  "@id": "https://iisg.amsterdam/resource/ListOfDenominations/",
+  "@type": "Dataset",
+  "name": [
+    {
+      "@language": "en",
+      "@value": "List of Religious Denominations"
+    },
+    {
+      "@language": "nl",
+      "@value": "Lijst van religieuze denominaties"
+    }
+  ],
+  "genre": [
+    {
+      "@id": "https://data.cultureelerfgoed.nl/termennetwerk/onderwerpen/Abstracte-begrippen"
+    }
+  ],
+  "creator": [
+    {
+      "@id": "https://iisg.amsterdam"
+    }
+  ],
+  "url": [
+    "https://iisg.amsterdam/resource/ListOfDenominations/"
+  ],
+  "description": [
+    {
+      "@language": "en",
+      "@value": "Controlled vocabulary of religious denominations including known spelling variants from historical sources"
+    },
+    {
+      "@language": "nl",
+      "@value": "Gecontroleerde vocabulaire van religieuze denominaties met bekende spellingvarianten uit historische bronnen"
+    }
+  ],
+  "inLanguage": [
+    "en",
+    "nl"
+  ],
+  "distribution": [
+    {
+      "@id": "https://api.druid.datalegend.net/datasets/IISG/List-of-Religious-Denominations/sparql",
+      "@type": "DataDownload",
+      "contentUrl": "https://api.druid.datalegend.net/datasets/IISG/List-of-Religious-Denominations/sparql",
+      "encodingFormat": "application/sparql-query",
+      "potentialAction": [
+        {
+          "@type": "SearchAction",
+          "query": "file://../queries/search/sparql.rq"
+        },
+        {
+          "@type": "FindAction",
+          "query": "file://../queries/lookup/sparql.rq"
+        },
+        {
+          "@type": "Action",
+          "target": {
+            "@type": "EntryPoint",
+            "actionApplication": {
+              "@id": "https://reconciliation-api.github.io/specs/latest/",
+              "@type": "SoftwareApplication"
+            },
+            "urlTemplate": "https://termennetwerk-api.netwerkdigitaalerfgoed.nl/reconcile/{dataset}"
+          }
+        }
+      ]
+    }
+  ]
+}

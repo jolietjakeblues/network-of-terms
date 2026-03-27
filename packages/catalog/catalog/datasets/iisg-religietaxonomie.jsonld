@@ -1,0 +1,71 @@
+{
+  "@context": "https://schema.org",
+  "@id": "https://iisg.amsterdam/resource/TaxonomyOfReligions/",
+  "@type": "Dataset",
+  "name": [
+    {
+      "@language": "en",
+      "@value": "Taxonomy of Religions"
+    },
+    {
+      "@language": "nl",
+      "@value": "Religietaxonomie"
+    }
+  ],
+  "genre": [
+    {
+      "@id": "https://data.cultureelerfgoed.nl/termennetwerk/onderwerpen/Abstracte-begrippen"
+    }
+  ],
+  "creator": [
+    {
+      "@id": "https://iisg.amsterdam"
+    }
+  ],
+  "url": [
+    "https://iisg.amsterdam/resource/TaxonomyOfReligions/"
+  ],
+  "description": [
+    {
+      "@language": "en",
+      "@value": "Controlled vocabulary for describing religions and religious movements"
+    },
+    {
+      "@language": "nl",
+      "@value": "Gecontroleerde vocabulaire voor het beschrijven van religies en religieuze stromingen"
+    }
+  ],
+  "inLanguage": [
+    "en",
+    "nl"
+  ],
+  "distribution": [
+    {
+      "@id": "https://api.druid.datalegend.net/datasets/IISG/Taxonomy-of-Religions/sparql",
+      "@type": "DataDownload",
+      "contentUrl": "https://api.druid.datalegend.net/datasets/IISG/Taxonomy-of-Religions/sparql",
+      "encodingFormat": "application/sparql-query",
+      "potentialAction": [
+        {
+          "@type": "SearchAction",
+          "query": "file://../queries/search/sparql.rq"
+        },
+        {
+          "@type": "FindAction",
+          "query": "file://../queries/lookup/sparql.rq"
+        },
+        {
+          "@type": "Action",
+          "target": {
+            "@type": "EntryPoint",
+            "actionApplication": {
+              "@id": "https://reconciliation-api.github.io/specs/latest/",
+              "@type": "SoftwareApplication"
+            },
+            "urlTemplate": "https://termennetwerk-api.netwerkdigitaalerfgoed.nl/reconcile/{dataset}"
+          }
+        }
+      ]
+    }
+  ]
+}

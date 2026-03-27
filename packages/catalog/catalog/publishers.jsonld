@@ -344,6 +344,21 @@
       "alternateName": "Tresoar"
     },
     {
+      "@id": "https://iisg.amsterdam",
+      "@type": "Organization",
+      "name": [
+        {
+          "@language": "nl",
+          "@value": "Internationaal Instituut voor Sociale Geschiedenis"
+        },
+      {
+          "@language": "en",
+          "@value": "International Institute of Social History"
+      }
+    ],
+      "alternateName": "IISG"
+    },
+    {
       "@id": "https://lgog.nl",
       "@type": "Organization",
       "name": [
