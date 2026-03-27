@@ -23,8 +23,8 @@
     }
   ],
   "url": [
-    "https://iisg.amsterdam/resource/TaxonomyOfReligions/"
-  ],
+    "https://iisg.amsterdam/resource/TaxonomyOfReligions/"],
+  "mainEntityOfPage": ["https://iisg.amsterdam/resource/TaxonomyOfReligions/"],
   "description": [
     {
       "@language": "en",
@@ -48,11 +48,11 @@
       "potentialAction": [
         {
           "@type": "SearchAction",
-          "query": "file://../queries/search/sparql.rq"
+          "query": "file://../queries/search/iisg-religies.rq"
         },
         {
           "@type": "FindAction",
-          "query": "file://../queries/lookup/sparql.rq"
+          "query": "file://../queries/lookup/iisg-religies.rq"
         },
         {
           "@type": "Action",
