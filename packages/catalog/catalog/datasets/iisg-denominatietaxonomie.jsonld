@@ -48,11 +48,11 @@
       "potentialAction": [
         {
           "@type": "SearchAction",
-          "query": "file://../queries/search/iisg-denominaties.rq"
+          "query": "file://../queries/search/iisg-search.rq"
         },
         {
           "@type": "FindAction",
-          "query": "file://../queries/lookup/iisg-denominaties.rq"
+          "query": "file://../queries/lookup/iisg-lookup.rq"
         },
         {
           "@type": "Action",
