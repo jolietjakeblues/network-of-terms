@@ -20,7 +20,7 @@ WHERE {
     {
         SELECT DISTINCT ?uri WHERE {
             ?uri a skos:Concept ;
-                 skos:inScheme <https://iisg.amsterdam/resource/ListOfDenominations/> ;
+                 skos:inScheme ?dataset ;
                  ?predicate ?label .
 
             VALUES ?predicate { skos:prefLabel skos:altLabel skos:hiddenLabel }

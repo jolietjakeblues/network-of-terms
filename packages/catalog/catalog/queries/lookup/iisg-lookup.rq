@@ -19,7 +19,7 @@ WHERE {
     VALUES ?uri { ?uris }
 
     ?uri a skos:Concept ;
-         skos:inScheme <https://iisg.amsterdam/resource/ListOfDenominations/> .
+         skos:inScheme ?dataset .
 
     OPTIONAL {
         ?uri skos:prefLabel ?prefLabel .
